@@ -1,31 +1,60 @@
 # Auth Service
 
-A small authentication service that stores users in PostgreSQL and provides user registration, login with token issuance, and password change.
-
-> **Before publishing:** replace every `TODO` below with the real value from your code, and delete any feature or endpoint your service does not actually have.
+A backend authentication service built with FastAPI and PostgreSQL. It provides user registration, login with JWT access tokens, authenticated user profile retrieval, and session-aware logout.
 
 ## Features
 
-- User registration (users stored in PostgreSQL)
-- Login that returns an access token
-- Password change for an authenticated user
-- TODO: password hashing algorithm (e.g. bcrypt / argon2)
-- TODO: token type and expiry (e.g. JWT, 60 minutes)
+- User registration with user information
+- Login with access token issuance
+- JWT-based authentication
+- Authenticated user profile endpoint
+- User session tracking during login
+- Session closure during logout
+- Password hashing using Argon2id
+- PostgreSQL database integration
 
 ## Tech Stack
 
-- Python, TODO: framework (e.g. FastAPI)
-- PostgreSQL
-- TODO: ORM / DB driver (e.g. SQLAlchemy, psycopg2)
-- TODO: testing tool (e.g. pytest)
+- **Language:** Python
+- **Framework:** FastAPI
+- **Database:** PostgreSQL
+- **ORM:** SQLAlchemy
+- **Authentication:** JWT access tokens
+- **Password Hashing:** Argon2id
+- **API Documentation:** Swagger UI / OpenAPI
+- **Testing:** pytest
 
 ## Project Structure
 
-```
-auth-service/
-├── app/            # application code (TODO: adjust to your layout)
-├── tests/          # automated tests
-├── .env.example    # example configuration (no real secrets)
+```text
+auth_service/
+├── app/
+│   ├── api/
+│   │   ├── auth.py
+│   │   ├── dependencies.py
+│   │   └── router.py
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── exceptions.py
+│   │   └── security.py
+│   ├── db/
+│   │   ├── base.py
+│   │   └── session.py
+│   ├── models/
+│   │   ├── user.py
+│   │   └── user_sessions.py
+│   ├── repositories/
+│   │   ├── user_repository.py
+│   │   └── user_session_repository.py
+│   ├── schemas/
+│   │   ├── auth.py
+│   │   └── user.py
+│   ├── services/
+│   │   └── auth_service.py
+│   └── main.py
+├── tests/
+│   └── test_auth.py
+├── .env.example
 ├── .gitignore
 ├── requirements.txt
 └── README.md
@@ -33,131 +62,176 @@ auth-service/
 
 ## Getting Started
 
-### 1. Clone and install
+### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/USERNAME/auth-service.git
-cd auth-service
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+git clone https://github.com/omranish12/securityService.git
+cd securityService
+```
+
+### 2. Create a Virtual Environment
+
+Windows:
+
+```cmd
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+Linux / macOS:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure
+### 4. Configure Environment Variables
 
-Copy the example file and fill in your own values:
+Create a `.env` file based on `.env.example` and configure the required database connection and authentication settings.
 
-```bash
-cp .env.example .env
-```
+Never commit the real `.env` file or expose database credentials and token-signing secrets.
 
-Example `.env.example` (TODO: match the variable names your code reads):
+### 5. Configure PostgreSQL
 
-```
-DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/auth_db
-SECRET_KEY=change-me
-TOKEN_EXPIRE_MINUTES=60
-```
+Create a PostgreSQL database and configure the connection string according to the environment variables expected by the application.
 
-Never commit the real `.env` file.
+Ensure that the required database tables and schema are created before using the API.
 
-### 3. Create the database
+### 6. Run the Application
 
 ```bash
-createdb auth_db
-```
-
-TODO: describe how tables are created (migrations, or automatically on startup).
-
-### 4. Run
-
-```bash
-# TODO: replace with your real start command, for example:
 uvicorn app.main:app --reload
 ```
 
-## API
+The API documentation is available at:
 
-TODO: adjust paths, field names and status codes to match your code.
+- Swagger UI: `http://127.0.0.1:8000/docs`
+- ReDoc: `http://127.0.0.1:8000/redoc`
 
-### Register
+## API Endpoints
+
+All authentication endpoints use the `/auth` prefix, except for the profile endpoint.
+
+### 1. Register a User
 
 `POST /auth/register`
 
-```json
-{
-  "email": "user@example.com",
-  "password": "StrongPassword123"
-}
-```
+Registers a new user.
 
-Response `201 Created`:
+Example request:
 
 ```json
 {
-  "id": 1,
-  "email": "user@example.com"
+  "username": "shadi",
+  "email": "shadi@example.com",
+  "password": "StrongPassword123",
+  "first_name": "Shadi",
+  "last_name": "Omrani"
 }
 ```
 
-### Login
+The exact request fields depend on `RegisterRequest`.
+
+**Success response:** `201 Created`
+
+```json
+{
+  "id": "user-id",
+  "username": "shadi",
+  "email": "shadi@example.com",
+  "first_name": "Shadi",
+  "last_name": "Omrani",
+  "is_active": true
+}
+```
+
+A registration validation error is returned with `400 Bad Request`.
+
+### 2. Login
 
 `POST /auth/login`
 
-```json
-{
-  "email": "user@example.com",
-  "password": "StrongPassword123"
-}
-```
+Authenticates a user and issues an access token. The request also includes the `login_system` information defined by `LoginRequest`.
 
-Response `200 OK`:
+Example response:
 
 ```json
 {
-  "access_token": "<token>",
+  "access_token": "<access-token>",
   "token_type": "bearer"
 }
 ```
 
-Wrong credentials return `401 Unauthorized`.
+Invalid credentials or login errors represented by `ValueError` return `401 Unauthorized`.
 
-### Change password
+### 3. Get User Profile
 
-`POST /auth/change-password`
+`GET /profile`
 
-Header: `Authorization: Bearer <token>`
+Returns the profile of the authenticated user.
+
+Authentication is handled through the `get_current_user` dependency.
+
+The exact authentication header format depends on the implementation of `get_current_user`.
+
+### 4. Logout
+
+`GET /auth/logout`
+
+Closes the session associated with the provided access token.
+
+The current implementation expects a request header named `token`:
+
+```http
+token: <access-token>
+```
+
+A successful response:
 
 ```json
 {
-  "old_password": "StrongPassword123",
-  "new_password": "EvenStrongerPassword456"
+  "message": "Logout successful."
 }
 ```
 
-Response `200 OK`.
+> **Implementation note:** Consider changing logout to `POST /auth/logout` and using the standard `Authorization: Bearer <token>` header. Also ensure invalid or expired tokens are handled safely.
 
-## Tests
+## Testing
+
+Run the test suite with:
 
 ```bash
 pytest
 ```
 
-TODO: list what the tests cover (successful login, wrong password, duplicate user, password change).
+The available automated tests are located in the `tests/` directory.
 
-## Security Notes
+## Security Considerations
 
-- Passwords are stored only as hashes, never as plain text. (TODO: confirm)
-- The token signing key is read from the environment, not from the source code. (TODO: confirm)
-- Passwords are never returned in responses or written to logs. (TODO: confirm)
+- Passwords should be stored as secure hashes, not plaintext.
+- JWT signing secrets and database credentials should be provided through environment variables.
+- Access tokens should have a defined expiration time.
+- Protected endpoints must validate the token before accessing user data.
+- Logout should invalidate or close the associated session according to the application's session-management design.
+- Sensitive values must never be committed to the repository.
 
-## Possible Improvements
+## Potential Improvements
 
-- Refresh tokens
-- Rate limiting on login
+- Refresh-token support
+- Rate limiting for login attempts
 - Email verification and password reset
-- Dockerfile and docker-compose for one-command setup
+- Role-based access control
+- Database migrations
+- Docker-based development setup
+- Improved token revocation and logout semantics
 
 ## Author
 
-Shadi Omrani, Backend Software Engineer
+**Shadi Omrani**  
+Backend Software Engineer
